@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #121212;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* Prevent scrolling during blast */
+        }
+
+        .container {
+            text-align: center;
+            color: #ffffff;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #00ffab;
+        }
+
+        .players {
+            display: flex;
+            justify-content: space-between;
+            width: 300px;
+            margin: 0 auto 20px;
+        }
+
+        .player {
+            width: 100px;
+            text-align: center;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-gap: 5px;
+            margin: 20px auto;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            background-color: #1e1e1e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            position: relative;
+        }
+
+        .cell:hover {
+            background-color: #333333;
+        }
+
+        .cell.X {
+            color: #ff3b3b;
+        }
+
+        .cell.O {
+            color: #3b9eff;
+        }
+
+        .cell.strike {
+            background: rgba(255, 255, 0, 0.2);
+        }
+
+        .message {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+
+        .input-container {
+            margin-bottom: 20px;
+        }
+
+        .input-container input {
+            padding: 5px;
+            font-size: 1em;
+        }
+
+        .input-container button {
+            padding: 5px 10px;
+            font-size: 1em;
+            background-color: #00ffab;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .input-container button:hover {
+            background-color: #009f75;
+        }
+
+        .timer {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+
+        .blast {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            overflow: hidden;
+            animation: blast-in 1s forwards;
+        }
+
+        .blast-overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(8px);
+            z-index: 999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .winner-container {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .winner-icon {
+            font-size: 5em;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+
+        .winner-name {
+            font-size: 3em;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+
+        .winner-text {
+            font-size: 2em;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            margin-top: 20px;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #ff3b3b;
+            animation: confetti 2s ease-out forwards;
+        }
+
+        @keyframes confetti {
+            0% {
+                transform: translateY(0) rotate(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes blast-in {
+            0% {
+                transform: scale(0);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tic-Tac-Toe</h1>
+        <div class="input-container">
+            <input type="text" id="playerX" placeholder="Player X Name">
+            <input type="text" id="playerO" placeholder="Player O Name">
+            <button onclick="startGame()">Start Game</button>
+        </div>
+        <div class="players">
+            <div class="player" id="playerXDisplay"></div>
+            <div class="player" id="playerODisplay"></div>
+        </div>
+        <div class="timer" id="timer">Time: 00:00</div>
+        <div class="board" id="board"></div>
+        <div class="message" id="message"></div>
+        <button onclick="resetGame()">Restart Game</button>
+    </div>
+    <div class="blast" id="blast"></div>
+    <div class="blast-overlay" id="blastOverlay"></div>
+    <div class="winner-container" id="winnerContainer">
+        <div class="winner-icon">🏆</div>
+        <div class="winner-name" id="winnerName"></div>
+        <div class="winner-text">Winner!</div>
+    </div>
+    <script>
+        const boardElement = document.getElementById('board');
+        const messageElement = document.getElementById('message');
+        const playerXDisplay = document.getElementById('playerXDisplay');
+        const playerODisplay = document.getElementById('playerODisplay');
+        const timerElement = document.getElementById('timer');
+        const blastElement = document.getElementById('blast');
+        const blastOverlay = document.getElementById('blastOverlay');
+        const winnerContainer = document.getElementById('winnerContainer');
+        const winnerNameElement = document.getElementById('winnerName');
+
+        let board = ['', '', '', '', '', '', '', '', ''];
+        let currentPlayer = 'X';
+        let gameActive = false;
+        let playerXName = '';
+        let playerOName = '';
+        let timerInterval;
+        let startTime;
+
+        function startGame() {
+            playerXName = document.getElementById('playerX').value || 'Player X';
+            playerOName = document.getElementById('playerO').value || 'Player O';
+            playerXDisplay.textContent = playerXName;
+            playerODisplay.textContent = playerOName;
+            gameActive = true;
+            resetGame();
+            startTime = new Date();
+            timerInterval = setInterval(updateTimer, 1000);
+            messageElement.textContent = `${playerXName}'s turn (X)`;
+        }
+
+        function renderBoard() {
+            boardElement.innerHTML = '';
+            board.forEach((cell, index) => {
+                const cellElement = document.createElement('div');
+                cellElement.classList.add('cell');
+                cellElement.textContent = cell;
+                cellElement.addEventListener('click', () => handleCellClick(index));
+                boardElement.appendChild(cellElement);
+            });
+        }
+
+        function handleCellClick(index) {
+            if (board[index] === '' && gameActive) {
+                board[index] = currentPlayer;
+                renderBoard();
+                checkWinner();
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                messageElement.textContent = `${currentPlayer === 'X' ? playerXName : playerOName}'s turn (${currentPlayer})`;
+            }
+        }
+
+        function checkWinner() {
+            const winningCombinations = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                [0, 4, 8], [2, 4, 6]
+            ];
+
+            for (const combination of winningCombinations) {
+                const [a, b, c] = combination;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    gameActive = false;
+                    document.querySelectorAll('.cell').forEach((cell, index) => {
+                        if (index === a || index === b || index === c) {
+                            cell.classList.add('strike');
+                        }
+                    });
+                    const winnerName = board[a] === 'X' ? playerXName : playerOName;
+                    messageElement.textContent = `Player ${winnerName} Wins!`;
+                    displayBlast(winnerName);
+                    clearInterval(timerInterval);
+                    return;
+                }
+            }
+
+            if (!board.includes('')) {
+                gameActive = false;
+                messageElement.textContent = "It's a Draw!";
+                clearInterval(timerInterval);
+            }
+        }
+
+        function resetGame() {
+            board = ['', '', '', '', '', '', '', '', ''];
+            currentPlayer = 'X';
+            gameActive = true;
+            renderBoard();
+            messageElement.textContent = `${playerXName}'s turn (X)`;
+            clearInterval(timerInterval);
+            timerElement.textContent = 'Time: 00:00';
+            blastElement.innerHTML = '';
+            blastOverlay.style.display = 'none';
+            winnerContainer.style.display = 'none';
+            document.body.classList.remove('blurred'); // Remove blur on reset
+        }
+
+        function updateTimer() {
+            const currentTime = new Date();
+            const elapsedTime = Math.floor((currentTime - startTime) / 1000);
+            const minutes = String(Math.floor(elapsedTime / 60)).padStart(2, '0');
+            const seconds = String(elapsedTime % 60).padStart(2, '0');
+            timerElement.textContent = `Time: ${minutes}:${seconds}`;
+        }
+
+        function displayBlast(winner) {
+            // Blur the background
+            document.body.classList.add('blurred');
+
+            // Show winner overlay
+            blastOverlay.style.display = 'flex';
+            winnerNameElement.textContent = winner;
+            winnerContainer.style.display = 'block';
+
+            // Add confetti animation
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.backgroundColor = i % 2 === 0 ? '#ff3b3b' : '#3b9eff';
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.animationDelay = `${Math.random()}s`;
+                confetti.classList.add('confetti-right');
+                blastElement.appendChild(confetti);
+            }
+        }
+    </script>
+</body>
+</html>
